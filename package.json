@@ -1,0 +1,9 @@
+{
+  "devDependencies": {
+    "gulp": "^3.9.1",
+    "gulp-changed": "^1.3.0",
+    "gulp-clean": "^0.3.2",
+    "gulp-luacheck": "^1.0.3",
+    "gulp-shell": "^0.5.2"
+  }
+}

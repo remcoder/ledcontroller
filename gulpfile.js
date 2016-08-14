@@ -5,7 +5,7 @@ var changed = require('gulp-changed');
 var clean = require('gulp-clean');
 var luacheck = require("gulp-luacheck");
 
-var SRC = 'src/**/*.lua';
+var SRC = 'src/**/*.*';
 var DEST = 'dist';
 
 // we'll use some settings from nodemcu-tool when uploading with nodemcu-uploader

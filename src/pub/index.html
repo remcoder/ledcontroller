@@ -1,0 +1,21 @@
+
+<h1>LEDstrip controller</h1>
+
+<h2>Files</h2>
+
+<ul class="files">
+    <li v-for="file in files">
+
+        <a href="{{ 'http://' + currentDevice.host  + '/' + file}}" @click="loadFile(file, $event)">{{ file }}</a>
+        <button @click="deleteFile(file)">delete</button>
+    </li>
+</ul>
+
+
+<h3>Current file: {{currentFile.path }}</h3>
+<textarea v-model="currentFile.content"></textarea>
+<br>
+<button @click="saveFile()">save</button>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/vue/1.0.26/vue.min.js"></script>
+<script src="/main.js"></script>

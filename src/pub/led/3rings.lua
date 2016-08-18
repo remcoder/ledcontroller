@@ -1,3 +1,3 @@
 local utils = require('utils');
 
-utils.testLength(8, 300);
+utils.all(255,255,255, 33);

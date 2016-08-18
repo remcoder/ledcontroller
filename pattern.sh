@@ -1,2 +1,2 @@
 #!/usr/bin/env bash
-nodemcu-tool --silent run patterns/$1.lua
+nodemcu-tool --silent run pub/led/$1.lua

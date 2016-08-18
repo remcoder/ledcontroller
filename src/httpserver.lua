@@ -2,19 +2,47 @@ local srv;
 local Utils = require('utils');
 
 local function writeInfo(buf)
-    buf = Utils.printFiles(buf);
+    conn.send(Utils.printFiles(buf));
 
-    buf = buf.."<br>";
+    conn.send("<br>");
 
-    buf = buf.."<div><i>ip " ..wifi.sta.getip().."</i></div>";
-    buf = buf.."<div><i>heap " ..(node.heap()/1024).."k</i></div>";
+    conn.send("<div><i>ip " ..wifi.sta.getip().."</i></div>");
+    conn.send("<div><i>heap " ..(node.heap()/1024).."k</i></div>");
 
     local total, used, _ = file.fsinfo();
-    buf = buf.."<div><i>"..(used/1000).."k used of "..(total/1024).."k total</i></div>";
+    conn.send("<div><i>"..(used/1000).."k used of "..(total/1024).."k total</i></div>");
 
-    buf = buf.."<div><i>uptime "..Utils.prettyTime(tmr.time()).."</i></div>";
+    conn.send("<div><i>uptime "..Utils.prettyTime(tmr.time()).."</i></div>");
+end
 
-    return buf;
+local function parseRequest(request)
+    print(request);
+
+    -- parse request
+    local _, _, method, path, vars = string.find(request, "([A-Z]+) (.+)?(.+) HTTP");
+
+    if (method == nil) then
+        _, _, method, path = string.find(request, "([A-Z]+) (.+) HTTP");
+    end
+
+    local _GET = {}
+    if vars ~= nil then
+        for k, v in string.gmatch(vars, "(%w+)=(%w+)&*") do
+            _GET[k] = v
+        end
+    end
+
+    path = string.sub(path, 2);
+
+    if not path or path == '' then
+        path = 'index.html'
+    end
+
+    path = 'pub/'..path;
+
+    print(method..' ['..path..']');
+
+    return method, path, vars;
 end
 
 local function run()
@@ -24,52 +52,53 @@ local function run()
     srv:listen(80,function(conn)
         conn:on("receive", function(client,request)
 
-            local function endResponse(buffer)
-                client:send(buffer);
+            local method, path, vars = parseRequest(request);
+            local files = file.list()
+
+            if not files[path] then
+                conn:send('HTTP/1.0 404 Not Found\r\n');
                 client:close();
-            end
-
-            -- parse request
-            local buf = "";
-            local _, _, method, path, vars = string.find(request, "([A-Z]+) (.+)?(.+) HTTP");
-
-            if (method == nil) then
-                _, _, _, path = string.find(request, "([A-Z]+) (.+) HTTP");
-            end
-
-            local _GET = {}
-            if vars ~= nil then
-                for k, v in string.gmatch(vars, "(%w+)=(%w+)&*") do
-                    _GET[k] = v
-                end
-            end
-
-            path = string.sub(path, 2);
-
-            -- ignore favicon
-            if (path=='favicon.ico') then
-                endResponse(buf);
                 return;
             end
 
-            print(path);
+            local response = {'HTTP/1.0 200 OK\r\nAccess-Control-Allow-Origin: *\r\nAccess-Control-Allow-Methods: OPTIONS, GET, POST, PUT, DELETE\r\n\r\n'};
 
-            buf = buf.."<h1>Pingpong Notify</h1>";
+            if method == 'GET' then
+                print('- serving '..path);
+                file.open(path, 'r');
+                local content = file.read();
+                print(content);
+                table.insert(response, content);
+                file.close();
 
-            if (path=='status') then
-                buf = writeInfo(buf);
-            end
-            endResponse(buf);
-
-            if path and Utils.isExecutable(path) then
-                -- find file and execute it
-                local files = file.list()
-
-                if files[path]  then
+            elseif method == 'POST' then
+                if  Utils.isExecutable(path) then
                     print('- executing '..path);
-                    dofile(path);
+
+                    -- TODO handle errors
+                    local result = dofile(path)();
+
+                    if result then
+                        local str = table.concat(result);
+                        print(str);
+                        table.insert(response, str);
+                    else
+                        table.insert(response, 'OK');
+                    end
+                else
+                    print('Cannot exec static file!');
+                    table.insert(response, 'Cannot exec static file!');
                 end
+            elseif method == 'DELETE' then
+                file.remove(path);
+            elseif method == 'PUT' then
+                -- save file
+                print('saving file '..path);
             end
+
+            -- flush buffer
+            conn:send(table.concat(response));
+            client:close();
         end)
     end)
 

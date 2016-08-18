@@ -29,7 +29,7 @@ local function prettyTime(timeInSeconds)
 end
 
 local function led(r,g,b)
-    ws2812.writergb(1, string.char(r,g,b));
+    ws2812.write(string.char(g,r,b));
 end
 
 -- blink the first LED. useful for status
@@ -83,6 +83,9 @@ local toggleOrange = coroutine.wrap(function()
 end);
 
 local function checkNetwork(onConnect)
+    print('init wifi')
+    dofile('wifi.lua');
+
     toggleOrange();
 
     tmr.alarm(2, 100, tmr.ALARM_AUTO, function()
@@ -114,26 +117,34 @@ local function all(r,g,b, n)
     end
 
 
-    ws2812.writergb(1, buffer);
+    ws2812.write(buffer);
 end
 
 local function firstOnly(r,g,b, n)
-    ws2812.write(1, string.rep(string.char(0), (n-1)*3 ) .. string.char(r,g,b));
+    ws2812.write(string.rep(string.char(0), (n-1)*3 ) .. string.char(r,g,b));
 end
 
-local function testLength(length, delay)
-    local current = 1;
-    tmr.alarm(1, delay, tmr.ALARM_AUTO, function()
-        if current == 1 then
-            all(0,0,0, length)
-        end
+local current = 1;
+local function testLength(length, delay, doneHandler)
+    print('- testing led #'..current)
+    if current == 1 then
+        all(0,0,0, length)
+    end
 
-        firstOnly(255,255,255, current);
-        current = current + 1;
-        if current > length then
-            current = 1;
+    firstOnly(255,255,255, current);
+    current = current + 1;
+
+    if current <= length then
+        tmr.alarm(1, delay, 0, function()
+            testLength(length, delay, doneHandler)
+        end);
+    else
+        all(0,0,0, length)
+        print('test finished')
+        if doneHandler then
+            doneHandler()
         end
-    end);
+    end
 end
 
 
@@ -143,12 +154,13 @@ local function randomize(length, delay)
     tmr.alarm(1, delay, tmr.ALARM_AUTO, function()
         index = math.random(1, length);
         color = string.char(math.random(255), math.random(255), math.random(255));
-        ws2812.writergb(1, string.rep(string.char(0), (index-1)*3 ) .. color .. string.rep(string.char(0), (length-index)*3 )  );
+        ws2812.write(string.rep(string.char(0), (index-1)*3 ) .. color .. string.rep(string.char(0), (length-index)*3 )  );
     end);
 end
 
 local function isExecutable(path)
-    return string.find(path, 'patterns/', 1, true) or string.find(path, 'commands/', 1, true);
+    local ext = string.sub(path, -4);
+    return ext == '.lua' or ext == '.lc';
 end
 
 -- traverse a table alphabetically. see: https://www.lua.org/pil/19.3.html
